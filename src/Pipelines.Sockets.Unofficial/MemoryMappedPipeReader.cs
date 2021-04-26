@@ -38,13 +38,18 @@ namespace Pipelines.Sockets.Unofficial
         }
 
         private bool _loadMore = true;
-        private long _remaining, _offset;
+        private long _remaining, _offset, _fileSize;
         private MappedPage _first, _last;
 
         /// <summary>
         /// Indicates whether this API is likely to work
         /// </summary>
         public static bool IsAvailable => s_safeBufferField != null;
+
+        /// <summary>
+        /// Returns the current size of the file
+        /// </summary>
+        public long FileSize => _stream.Length;
 
         private static readonly FieldInfo s_safeBufferField;
         static MemoryMappedPipeReader()
@@ -69,7 +74,7 @@ namespace Pipelines.Sockets.Unofficial
             if (string.IsNullOrWhiteSpace(name)) name = GetType().Name;
             Name = name;
             _pageSize = pageSize;
-            _remaining = length;
+            _remaining = _fileSize = _stream.Length;
         }
 
         private const int DEFAULT_PAGE_SIZE = 64 * 1024;
@@ -220,6 +225,17 @@ namespace Pipelines.Sockets.Unofficial
             result = Read();
             return true;
         }
+
+        public void RefreshSize()
+        {
+            var newSize = _stream.Length;
+            if (newSize > _fileSize)
+            {
+                _remaining += newSize - _fileSize;
+                _fileSize = newSize;
+            }
+        }
+
         private ReadResult Read()
         {
             if (_loadMore)
