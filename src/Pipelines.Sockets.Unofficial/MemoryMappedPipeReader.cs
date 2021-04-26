@@ -20,6 +20,7 @@ namespace Pipelines.Sockets.Unofficial
     public sealed class MemoryMappedPipeReader : PipeReader, IDisposable
     {
         private MemoryMappedFile _file;
+        private FileStream _stream;
         private readonly int _pageSize;
 
         /// <summary>
@@ -58,10 +59,10 @@ namespace Pipelines.Sockets.Unofficial
                 Helpers.DebugLog(nameof(MemoryMappedPipeReader), ex.Message);
             }
         }
-        private MemoryMappedPipeReader(MemoryMappedFile file, long length, int pageSize = DEFAULT_PAGE_SIZE, string name = null)
+        private MemoryMappedPipeReader(FileStream stream, long length, int pageSize = DEFAULT_PAGE_SIZE, string name = null)
         {
-            if (file == null) Throw.ArgumentNull(nameof(file));
-            _file = file;
+            _stream = stream;
+            _file = MemoryMappedFile.CreateFromFile(stream, null, 0, MemoryMappedFileAccess.Read, HandleInheritability.Inheritable, false); ;
             if (pageSize <= 0) Throw.ArgumentOutOfRange(nameof(pageSize));
             if (length < 0) Throw.ArgumentOutOfRange(nameof(length));
 
@@ -84,8 +85,8 @@ namespace Pipelines.Sockets.Unofficial
                 var file = new FileInfo(path);
                 if (!file.Exists) Throw.FileNotFound("File not found", path);
 
-                var mmap = MemoryMappedFile.CreateFromFile(path, FileMode.Open, null, file.Length, MemoryMappedFileAccess.Read);
-                return new MemoryMappedPipeReader(mmap, file.Length, pageSize, path);
+                var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                return new MemoryMappedPipeReader(stream, file.Length, pageSize, path);
             }
             else
             {
